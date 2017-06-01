@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent"
+  android:orientation="vertical">
+
+    <EditText
+      android:id="@+id/editText"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="baidu.com"
+      android:autoText="false" />
+    <Button
+      android:id="@+id/btnPing"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:onClick="onclick"
+      android:text="@string/start">
+    </Button>
+
+    <Button
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="TraceRoute"
+      android:onClick="onclick"
+      android:id="@+id/btnTrace" />
+
+    <ProgressBar
+      android:id="@+id/progressBar"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:indeterminate="true">
+    </ProgressBar>
+    <ScrollView
+      android:layout_width="fill_parent"
+      android:layout_height="wrap_content">
+        <TextView
+          android:id="@+id/tvInfo"
+          android:layout_width="fill_parent"
+          android:layout_height="wrap_content"
+          android:text="">
+        </TextView>
+    </ScrollView>
+</LinearLayout>
