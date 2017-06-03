@@ -12,7 +12,6 @@ public class NetworkAnalysisResult {
 
   public List<PingResult> pingResults = new ArrayList<>();
   public List<TraceResult> traceResults = new ArrayList<>();
-  public List<PackageLostResult> packageLostResults = new ArrayList<>();
 
   public NetworkAnalysisResult() {
 
@@ -42,11 +41,5 @@ public class NetworkAnalysisResult {
   static class Router {
     String host;
     String ip;
-  }
-
-  static class PackageLostResult {
-    String url;
-    int totalCount;
-    int successCount;
   }
 }

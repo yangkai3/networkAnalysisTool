@@ -7,23 +7,21 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import android.system.ErrnoException;
 import android.text.TextUtils;
 import android.util.Log;
 
 /**
- * Created by Annie on 2017/5/27.
+ * @author yangkai
  */
-
 public class NetworkAnalysisTool {
 
   /** 尝试三次 **/
-  private static final String PING_CMD = "ping -c 3 %s";
+  private static final String PING_CMD = "ping -c %d %s";
   /** 用 ping 的方式，查找路由 **/
   private static final String TRACE_CMD = "ping -c 1 -t %d %s";
   /** 从 ping 结果中 grep 出数据 **/
   private static final String PING_RESULT_PATTEN =
-      "([*\\d]) packets transmitted, ([*\\d]) received[^\\n]*";
+      "(\\d+) packets transmitted, (\\d+) received[^\\n]*";
   private static final String TRACE_RESULT_PATTERN = "[fF]rom (.*\\(.*\\)|.*): .*";
   private static final String TRACE_TARGET_IP_PATTERN = ".*\\((\\d+\\.\\d+\\.\\d+\\.\\d+).*";
   private static final String TRACE_RECEIVE_BYTE_PATTERN =
@@ -41,15 +39,15 @@ public class NetworkAnalysisTool {
 
     for (String url : urls) {
       try {
-        ping(url, result);
+        ping(url, 1, result);
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
   }
 
-  private static void ping(String url, NetworkAnalysisResult result) throws IOException {
-    String cmd = String.format(PING_CMD, url);
+  private static void ping(String url,  int packageCount, NetworkAnalysisResult result) throws IOException {
+    String cmd = String.format(PING_CMD, packageCount, url);
     Process p = Runtime.getRuntime().exec(cmd);
     BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
@@ -98,6 +96,24 @@ public class NetworkAnalysisTool {
       }
     }
     return null;
+  }
+
+  public static void packageLost(List<String> urls, NetworkAnalysisResult result) {
+    if (urls == null) {
+      return;
+    }
+
+    for (String url : urls) {
+      try {
+        packageLost(url, result);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  private static void packageLost(String urls, NetworkAnalysisResult result) throws IOException {
+    ping(urls, 10, result);
   }
 
   public static void trace(List<String> urls, NetworkAnalysisResult result, Callback callback) {
@@ -153,11 +169,15 @@ public class NetworkAnalysisTool {
 
     BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
-    String routerLine = ""; // 记录路由信息
     String targetIp = null; // 记录最后一跳的 ip 信息
+    String routerIp = null;
+    String routerHost = null;
+
     String s;
     while ((s = stdInput.readLine()) != null) {
       Log.d(TAG, "trace find line : " + s);
+
+      // 找到 host 对应的 ip 地址
       if (ttl == 1 && s.toLowerCase().startsWith("ping")) {
         final Pattern pattern = Pattern.compile(TRACE_TARGET_IP_PATTERN);
         final Matcher matcher = pattern.matcher(s);
@@ -167,62 +187,53 @@ public class NetworkAnalysisTool {
             throw new IOException("can't find target ip");
           }
           traceResult.ip = ip;
-          Log.d(TAG, "trace find target ip : " + ip);
+          Log.e(TAG, "trace find target ip : " + ip);
         }
       }
 
-      if (s.toLowerCase().startsWith("from")) {
-        routerLine = s;
-        Log.e(TAG, "trace find router ip, line : " + s);
-        break;
-      } else {
+      if (s.matches(TRACE_RESULT_PATTERN)) { // 找到当前路由信息行
+        final Pattern pattern = Pattern.compile(TRACE_RESULT_PATTERN);
+        final Matcher matcher = pattern.matcher(s);
+        if (matcher.find()) {
+          final String routerString = matcher.group(1);
+          if (!TextUtils.isEmpty(routerString)) {
+            final int index = routerString.indexOf('(');
+            if (index == -1) {
+              routerIp = routerString;
+            } else {
+              routerIp = routerString.substring(index + 1, routerString.length() - 1);
+              routerHost = routerString.substring(0, index);
+            }
+            Log.e(TAG, "trace find router ip : " + router.ip + " host: " + router.host);
+          }
+        }
+      } else if (s.matches(TRACE_RECEIVE_BYTE_PATTERN)) {// 确定时候已经从目标 host 收到数据
         final Pattern pattern = Pattern.compile(TRACE_RECEIVE_BYTE_PATTERN);
         final Matcher matcher = pattern.matcher(s);
         if (matcher.find()) {
           targetIp = matcher.group(1);
           if (TextUtils.isEmpty(targetIp)) {
             throw new IOException("can't find target ip");
+          } else {
+            routerIp = targetIp;
+            Log.e(TAG, "trace find target ip: " + routerIp);
           }
         }
       }
     }
 
     destroyProcess(process);
-    if (TextUtils.isEmpty(routerLine) && TextUtils.isEmpty(targetIp)) {
-      Log.e(TAG, "trace can' find router, may block the ping");
-      return router;
-    }
 
-    if (TextUtils.isEmpty(targetIp)) {
-      final Pattern pattern = Pattern.compile(TRACE_RESULT_PATTERN);
-      final Matcher matcher = pattern.matcher(routerLine);
-      if (matcher.find()) {
-        final String routerString = matcher.group(1);
-        if (TextUtils.isEmpty(routerString)) {
-          return router;
-        }
+    router.ip = routerIp;
+    router.host = routerHost;
 
-        final int index = routerString.indexOf('(');
-        if (index == -1) {
-          router.ip = routerString;
-        } else {
-          router.ip = routerString.substring(index + 1, routerString.length() - 1);
-          router.host = routerString.substring(0, index);
-        }
-      }
-    } else {
-      router.ip = targetIp;
-      router.host = traceResult.hostName;
-    }
-
-    Log.e(TAG, "trace find router ip : " + router.ip + " host: " + router.host);
     return router;
   }
 
   private static void destroyProcess(Process process) {
     try {
       process.destroy();
-    } catch (ErrnoException e) {
+    } catch (Exception e) {
       e.printStackTrace();
     }
   }

@@ -22,11 +22,11 @@ public class MainActivity extends Activity {
 
   Handler h;
   TextView tvInfo;
-  Button btnPing, btnTrace;
+  Button btnPing, btnTrace, btnMtr;
   ProgressBar progressBar;
   EditText editText;
 
-  NetworkAnalysisResult result = new NetworkAnalysisResult();
+  NetworkAnalysisResult result;
 
   /**
    * Called when the activity is first created.
@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     tvInfo = (TextView) findViewById(R.id.tvInfo);
     btnPing = (Button) findViewById(R.id.btnPing);
     btnTrace = (Button) findViewById(R.id.btnTrace);
+    btnMtr = (Button) findViewById(R.id.btnPackageLost);
     editText = (EditText) findViewById(R.id.editText);
 
     progressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -44,6 +45,7 @@ public class MainActivity extends Activity {
 
     h = new Handler() {
       public void handleMessage(Message msg) {
+
         StringBuilder stringBuilder = new StringBuilder();
         // print ping
         for (NetworkAnalysisResult.PingResult r : result.pingResults) {
@@ -78,6 +80,7 @@ public class MainActivity extends Activity {
         if (msg.what == 10) {
           btnPing.setEnabled(true);
           btnTrace.setEnabled(true);
+          btnTrace.setEnabled(true);
           progressBar.setVisibility(View.INVISIBLE);
         }
       }
@@ -85,9 +88,12 @@ public class MainActivity extends Activity {
   }
 
   public void onclick(View v) {
+    result = new NetworkAnalysisResult();
+
     switch (v.getId()) {
       case R.id.btnPing:
         btnPing.setEnabled(false);
+        btnTrace.setEnabled(false);
         btnTrace.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         Thread tPing = new Thread(new Runnable() {
@@ -109,11 +115,9 @@ public class MainActivity extends Activity {
       case R.id.btnTrace:
         btnPing.setEnabled(false);
         btnTrace.setEnabled(false);
+        btnTrace.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         Thread tTrace = new Thread(new Runnable() {
-          Message msg;
-          String trace = "";
-
           @Override
           public void run() {
             List<String> urls = new ArrayList<>();
@@ -132,6 +136,24 @@ public class MainActivity extends Activity {
           }
         });
         tTrace.start();
+        break;
+
+      case R.id.btnPackageLost:
+        btnPing.setEnabled(false);
+        btnTrace.setEnabled(false);
+        btnTrace.setEnabled(false);
+        progressBar.setVisibility(View.VISIBLE);
+        Thread tPackageLost = new Thread(new Runnable() {
+          @Override
+          public void run() {
+            List<String> urls = new ArrayList<>();
+            urls.add(editText.getText().toString());
+            NetworkAnalysisTool.packageLost(urls, result);
+            h.sendEmptyMessage(10);
+          }
+        });
+        tPackageLost.start();
+        break;
       default:
         break;
     }
