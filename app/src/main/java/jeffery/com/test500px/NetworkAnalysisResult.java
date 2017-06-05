@@ -12,16 +12,25 @@ public class NetworkAnalysisResult {
 
   public List<PingResult> pingResults = new ArrayList<>();
   public List<TraceResult> traceResults = new ArrayList<>();
+  public List<PingResult> packageLostResults = new ArrayList<>();
 
   public NetworkAnalysisResult() {
-
+    pingResults = new ArrayList<>();
+    traceResults = new ArrayList<>();
+    packageLostResults = new ArrayList<>();
   }
 
   static class PingResult {
-    String url;
+    String command;
     boolean result;
     int packageTransmitted;
     int packageReceived;
+    /** 每次 ping 的时候的耗时、ttl 等信息（只存，不解析） **/
+    List<String> detailInfo;
+
+    public PingResult() {
+      detailInfo = new ArrayList<>();
+    }
   }
 
   static class TraceResult {
@@ -29,7 +38,7 @@ public class NetworkAnalysisResult {
     String ip;
     /** 需要 ping 的地址，如果原来就是 ip 这里就是空 **/
     String hostName;
-    /** 过程中的路由 ip 地址 **/
+    /** 过程中的路由信息 **/
     List<Router> routers;
     boolean result;
 

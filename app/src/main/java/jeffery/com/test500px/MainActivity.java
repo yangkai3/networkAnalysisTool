@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
 
   Handler h;
   TextView tvInfo;
-  Button btnPing, btnTrace, btnMtr;
+  Button btnPing, btnTrace, btnPackageLost;
   ProgressBar progressBar;
   EditText editText;
 
@@ -37,7 +37,7 @@ public class MainActivity extends Activity {
     tvInfo = (TextView) findViewById(R.id.tvInfo);
     btnPing = (Button) findViewById(R.id.btnPing);
     btnTrace = (Button) findViewById(R.id.btnTrace);
-    btnMtr = (Button) findViewById(R.id.btnPackageLost);
+    btnPackageLost = (Button) findViewById(R.id.btnPackageLost);
     editText = (EditText) findViewById(R.id.editText);
 
     progressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
         StringBuilder stringBuilder = new StringBuilder();
         // print ping
         for (NetworkAnalysisResult.PingResult r : result.pingResults) {
-          stringBuilder.append(r.url + "\n");
+          stringBuilder.append(r.command + "\n");
           stringBuilder.append(r.packageTransmitted + " transmitted " + r.packageReceived
               + " received.\n");
           stringBuilder.append("result: " + r.result + "\n");
@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
       case R.id.btnPing:
         btnPing.setEnabled(false);
         btnTrace.setEnabled(false);
-        btnTrace.setEnabled(false);
+        btnPackageLost.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         Thread tPing = new Thread(new Runnable() {
           Message msg;
@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
       case R.id.btnTrace:
         btnPing.setEnabled(false);
         btnTrace.setEnabled(false);
-        btnTrace.setEnabled(false);
+        btnPackageLost.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         Thread tTrace = new Thread(new Runnable() {
           @Override
@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
       case R.id.btnPackageLost:
         btnPing.setEnabled(false);
         btnTrace.setEnabled(false);
-        btnTrace.setEnabled(false);
+        btnPackageLost.setEnabled(false);
         progressBar.setVisibility(View.VISIBLE);
         Thread tPackageLost = new Thread(new Runnable() {
           @Override

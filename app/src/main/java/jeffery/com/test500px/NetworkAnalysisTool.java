@@ -28,6 +28,7 @@ public class NetworkAnalysisTool {
       "\\d+ bytes from (\\d+\\.\\d+.\\d+.\\d+):.*";
   private static final int TRACE_MAX_TTL = 30;
   private static final int DEFAULT_PACKAGE_SIZE = 56;
+  private static final int DEFAULT_PING_TRY_COUNT = 3;
 
   private static final String TAG = NetworkAnalysisTool.class.getSimpleName();
 
@@ -40,43 +41,45 @@ public class NetworkAnalysisTool {
 
     for (String url : urls) {
       try {
-        ping(url, 1, DEFAULT_PACKAGE_SIZE, result);
+        NetworkAnalysisResult.PingResult pingResult =
+            ping(url, DEFAULT_PING_TRY_COUNT, DEFAULT_PACKAGE_SIZE);
+        result.pingResults.add(pingResult);
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
   }
 
-  private static void ping(String url, int packageCount, int packageSize,
-      NetworkAnalysisResult result)
+  private static NetworkAnalysisResult.PingResult ping(String url, int packageCount, int packageSize)
       throws IOException {
-    String cmd = String.format(PING_CMD, packageCount, packageSize, url);
-    Process p = Runtime.getRuntime().exec(cmd);
-    BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+    final String cmd = String.format(PING_CMD, packageCount, packageSize, url);
+    final Process p = Runtime.getRuntime().exec(cmd);
+    final BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+    final NetworkAnalysisResult.PingResult pingResult = new NetworkAnalysisResult.PingResult();
+    pingResult.command = cmd;
 
     String s;
     while ((s = stdInput.readLine()) != null) {
       Log.d(TAG, "ping line: " + s);
       if (s.matches(PING_RESULT_PATTEN)) {
-        break;
+        int[] packageTransmitResult = getPackageTransmitResult(s);
+        if (packageTransmitResult == null) {
+          pingResult.result = false;
+          return pingResult;
+        } else {
+          pingResult.packageTransmitted = packageTransmitResult[0];
+          pingResult.packageReceived = packageTransmitResult[1];
+          pingResult.result = packageTransmitResult[0] == packageTransmitResult[1];
+        }
+      } else if (s.matches(TRACE_RECEIVE_BYTE_PATTERN)) {// 记录target 的 ip、ttl、耗时等信息
+        pingResult.detailInfo.add(s);
       }
     }
 
-    int[] packageTransmitResult = getPackageTransmitResult(s);
+    destroyProcess(p);
 
-    NetworkAnalysisResult.PingResult pingResult = new NetworkAnalysisResult.PingResult();
-    if (packageTransmitResult == null) {
-      pingResult.result = false;
-      pingResult.url = url;
-      return;
-    }
-
-    pingResult.packageTransmitted = packageTransmitResult[0];
-    pingResult.packageReceived = packageTransmitResult[1];
-    pingResult.result = packageTransmitResult[0] == packageTransmitResult[1];
-    pingResult.url = url;
-
-    result.pingResults.add(pingResult);
+    return pingResult;
   }
 
   /**
@@ -108,15 +111,16 @@ public class NetworkAnalysisTool {
 
     for (String url : urls) {
       try {
-        packageLost(url, result);
+        NetworkAnalysisResult.PingResult packageLostResult = packageLost(url);
+        result.packageLostResults.add(packageLostResult);
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
   }
 
-  private static void packageLost(String urls, NetworkAnalysisResult result) throws IOException {
-    ping(urls, 10, DEFAULT_PACKAGE_SIZE, result);
+  private static NetworkAnalysisResult.PingResult packageLost(String urls) throws IOException {
+    return ping(urls, 10, DEFAULT_PACKAGE_SIZE);
   }
 
   public static void trace(List<String> urls, NetworkAnalysisResult result, Callback callback) {
@@ -137,8 +141,7 @@ public class NetworkAnalysisTool {
   }
 
   private static void trace(String url, int packageSize, NetworkAnalysisResult request,
-      Callback callback)
-      throws IOException {
+      Callback callback) throws IOException {
     final NetworkAnalysisResult.TraceResult traceResult = new NetworkAnalysisResult.TraceResult();
     request.traceResults.add(traceResult);
     traceResult.hostName = url;
