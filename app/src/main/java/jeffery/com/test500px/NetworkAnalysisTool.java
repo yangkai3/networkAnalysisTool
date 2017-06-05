@@ -16,9 +16,9 @@ import android.util.Log;
 public class NetworkAnalysisTool {
 
   /** 尝试三次 **/
-  private static final String PING_CMD = "ping -c %d %s";
+  private static final String PING_CMD = "ping -c %d -s %d %s";
   /** 用 ping 的方式，查找路由 **/
-  private static final String TRACE_CMD = "ping -c 1 -t %d %s";
+  private static final String TRACE_CMD = "ping -c 1 -t %d -s %d %s";
   /** 从 ping 结果中 grep 出数据 **/
   private static final String PING_RESULT_PATTEN =
       "(\\d+) packets transmitted, (\\d+) received[^\\n]*";
@@ -27,6 +27,7 @@ public class NetworkAnalysisTool {
   private static final String TRACE_RECEIVE_BYTE_PATTERN =
       "\\d+ bytes from (\\d+\\.\\d+.\\d+.\\d+):.*";
   private static final int TRACE_MAX_TTL = 30;
+  private static final int DEFAULT_PACKAGE_SIZE = 56;
 
   private static final String TAG = NetworkAnalysisTool.class.getSimpleName();
 
@@ -39,15 +40,17 @@ public class NetworkAnalysisTool {
 
     for (String url : urls) {
       try {
-        ping(url, 1, result);
+        ping(url, 1, DEFAULT_PACKAGE_SIZE, result);
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
   }
 
-  private static void ping(String url,  int packageCount, NetworkAnalysisResult result) throws IOException {
-    String cmd = String.format(PING_CMD, packageCount, url);
+  private static void ping(String url, int packageCount, int packageSize,
+      NetworkAnalysisResult result)
+      throws IOException {
+    String cmd = String.format(PING_CMD, packageCount, packageSize, url);
     Process p = Runtime.getRuntime().exec(cmd);
     BufferedReader stdInput = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
@@ -113,7 +116,7 @@ public class NetworkAnalysisTool {
   }
 
   private static void packageLost(String urls, NetworkAnalysisResult result) throws IOException {
-    ping(urls, 10, result);
+    ping(urls, 10, DEFAULT_PACKAGE_SIZE, result);
   }
 
   public static void trace(List<String> urls, NetworkAnalysisResult result, Callback callback) {
@@ -123,7 +126,7 @@ public class NetworkAnalysisTool {
 
     for (String url : urls) {
       try {
-        trace(url, result, callback);
+        trace(url, DEFAULT_PACKAGE_SIZE, result, callback);
         if (callback != null) {
           callback.onFinished(result);
         }
@@ -133,7 +136,8 @@ public class NetworkAnalysisTool {
     }
   }
 
-  private static void trace(String url, NetworkAnalysisResult request, Callback callback)
+  private static void trace(String url, int packageSize, NetworkAnalysisResult request,
+      Callback callback)
       throws IOException {
     final NetworkAnalysisResult.TraceResult traceResult = new NetworkAnalysisResult.TraceResult();
     request.traceResults.add(traceResult);
@@ -141,7 +145,7 @@ public class NetworkAnalysisTool {
 
     int ttl = 1;
     do {
-      NetworkAnalysisResult.Router result = traceOneStep(url, ttl, traceResult);
+      NetworkAnalysisResult.Router result = traceOneStep(url, ttl, packageSize, traceResult);
       traceResult.routers.add(result);
       if (callback != null) {
         callback.onProgressChanged(request);
@@ -161,10 +165,10 @@ public class NetworkAnalysisTool {
     } while (true);
   }
 
-  private static NetworkAnalysisResult.Router traceOneStep(String url, int ttl,
+  private static NetworkAnalysisResult.Router traceOneStep(String url, int ttl, int packageSize,
       NetworkAnalysisResult.TraceResult traceResult) throws IOException {
     final NetworkAnalysisResult.Router router = new NetworkAnalysisResult.Router();
-    final String command = String.format(TRACE_CMD, ttl, url);
+    final String command = String.format(TRACE_CMD, ttl, packageSize, url);
     final Process process = Runtime.getRuntime().exec(command);
 
     BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
